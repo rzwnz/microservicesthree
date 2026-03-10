@@ -1,0 +1,61 @@
+{{- if .Values.buckets }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "garage.fullname" . }}-init-buckets
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        {{- include "garage.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: init-buckets
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init-buckets
+          image: amazon/aws-cli:2.15.0
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garage.fullname" . }}-secret
+                  key: s3-access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garage.fullname" . }}-secret
+                  key: s3-secret-access-key
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.garage.s3Region | quote }}
+            - name: S3_ENDPOINT
+              value: "http://{{ include "garage.fullname" . }}-s3:{{ .Values.ports.s3Api }}"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for Garage S3 API to be ready..."
+              for i in $(seq 1 60); do
+                if aws --endpoint-url "$S3_ENDPOINT" s3 ls 2>/dev/null; then
+                  echo "Garage is ready."
+                  break
+                fi
+                echo "Attempt $i/60 - waiting..."
+                sleep 5
+              done
+
+              {{- range .Values.buckets }}
+              echo "Ensuring bucket '{{ .name }}' exists..."
+              aws --endpoint-url "$S3_ENDPOINT" s3api head-bucket --bucket "{{ .name }}" 2>/dev/null || \
+                aws --endpoint-url "$S3_ENDPOINT" s3 mb "s3://{{ .name }}"
+              {{- end }}
+
+              echo "All buckets initialized."
+{{- end }}

@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "garage.fullname" . }}
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "garage.fullname" . }}-headless
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "garage.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "garage.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "garage.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: inject-rpc-secret
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              RPC_SECRET=$(cat /secrets/rpc-secret)
+              sed "s|__RPC_SECRET__|${RPC_SECRET}|g" /config/garage.toml > /runtime-config/garage.toml
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: secret
+              mountPath: /secrets
+            - name: runtime-config
+              mountPath: /runtime-config
+      containers:
+        - name: garage
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: s3-api
+              containerPort: {{ .Values.ports.s3Api }}
+              protocol: TCP
+            - name: rpc
+              containerPort: {{ .Values.ports.rpc }}
+              protocol: TCP
+            - name: web
+              containerPort: {{ .Values.ports.web }}
+              protocol: TCP
+            - name: admin
+              containerPort: {{ .Values.ports.admin }}
+              protocol: TCP
+          env:
+            - name: GARAGE_CONFIG_FILE
+              value: /runtime-config/garage.toml
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /runtime-config
+              readOnly: true
+            - name: data
+              mountPath: /data/storage
+            - name: metadata
+              mountPath: /data/meta
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: admin
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: admin
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "garage.fullname" . }}-config
+        - name: secret
+          secret:
+            secretName: {{ include "garage.fullname" . }}-secret
+        - name: runtime-config
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        {{- if .Values.persistence.data.storageClassName }}
+        storageClassName: {{ .Values.persistence.data.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.data.size }}
+    - metadata:
+        name: metadata
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        {{- if .Values.persistence.metadata.storageClassName }}
+        storageClassName: {{ .Values.persistence.metadata.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.metadata.size }}

@@ -1,0 +1,18 @@
+spring:
+  sql:
+    init:
+      mode: never
+
+management:
+  endpoint:
+    health:
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+logging:
+  level:
+    root: INFO
+    com.sthree: INFO

@@ -1,0 +1,109 @@
+# ------------------------------------------------------------------
+# Garage Helm Chart - Default Values
+# ------------------------------------------------------------------
+
+replicaCount: 3
+
+image:
+  repository: dxflrs/garage
+  pullPolicy: IfNotPresent
+  tag: "v1.0.1"
+
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Garage configuration --
+garage:
+  # Metadata replication factor  (must be <= replicaCount)
+  metadataReplicationFactor: 3
+  # Data replication factor
+  dataReplicationFactor: 2
+  # Consensus protocol timeout (ms)
+  consensusTimeout: 5000
+  # RPC secret shared between garage nodes (auto-generated if empty)
+  rpcSecret: ""
+  # Existing secret name for RPC secret (key: rpc-secret)
+  existingRpcSecret: ""
+  # S3 API region
+  s3Region: garage
+
+# -- S3 API credentials --
+s3:
+  # Access key for S3 API
+  accessKey: ""
+  # Secret key for S3 API
+  secretKey: ""
+  # Existing secret containing access-key and secret-key
+  existingSecret: ""
+
+# -- Buckets to create on startup --
+buckets:
+  - name: sthree-dev-data
+    # Optionally create with a specific alias
+    alias: data
+
+# -- Ports --
+ports:
+  s3Api: 3900
+  rpc: 3901
+  admin: 3903
+  web: 3902      # Optional web/admin UI
+
+# -- Persistence --
+persistence:
+  enabled: true
+  storageClassName: ""
+  dataSize: 50Gi
+  metadataSize: 1Gi
+
+# -- Resources --
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# -- Service --
+service:
+  type: ClusterIP
+  annotations: {}
+
+# -- Ingress for S3 API --
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: garage.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# -- Node affinity / tolerations --
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -- Pod security context --
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# -- Service account --
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# -- Monitoring --
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s

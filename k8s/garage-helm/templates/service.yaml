@@ -1,0 +1,56 @@
+---
+# Headless service for StatefulSet DNS resolution
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "garage.fullname" . }}-headless
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    {{- include "garage.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: rpc
+      port: {{ .Values.ports.rpc }}
+      targetPort: rpc
+      protocol: TCP
+---
+# ClusterIP service for S3 API access
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "garage.fullname" . }}-s3
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "garage.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: s3-api
+      port: {{ .Values.ports.s3Api }}
+      targetPort: s3-api
+      protocol: TCP
+---
+# ClusterIP service for Admin API
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "garage.fullname" . }}-admin
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "garage.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: admin
+      port: {{ .Values.ports.admin }}
+      targetPort: admin
+      protocol: TCP
+    - name: web
+      port: {{ .Values.ports.web }}
+      targetPort: web
+      protocol: TCP

@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: file-service-config
+  namespace: sthree-services
+  labels:
+    app: file-service
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres.sthree-data.svc.cluster.local:5432/file_db"
+  SPRING_REDIS_HOST: "redis.sthree-data.svc.cluster.local"
+  SPRING_REDIS_PORT: "6379"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka.sthree-data.svc.cluster.local:9092"
+  STORAGE_QUOTA_DEFAULT_BYTES: "1073741824"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: file-service-secrets
+  namespace: sthree-services
+  labels:
+    app: file-service
+type: Opaque
+# IMPORTANT: Do not commit real credentials. Create this secret via:
+#   kubectl create secret generic file-service-secrets \
+#     --namespace=sthree-services \
+#     --from-literal=SPRING_DATASOURCE_USERNAME=<db-user> \
+#     --from-literal=SPRING_DATASOURCE_PASSWORD=<db-password>
+# Or use sealed-secrets / external-secrets-operator in production.
+stringData:
+  SPRING_DATASOURCE_USERNAME: ""
+  SPRING_DATASOURCE_PASSWORD: ""
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: garage-credentials
+  namespace: sthree-services
+  labels:
+    app: file-service
+type: Opaque
+# IMPORTANT: Do not commit real credentials. Create this secret via:
+#   kubectl create secret generic garage-credentials \
+#     --namespace=sthree-services \
+#     --from-literal=accessKey=<key> \
+#     --from-literal=secretKey=<secret>
+# Or use sealed-secrets / external-secrets-operator in production.
+stringData:
+  accessKey: ""
+  secretKey: ""

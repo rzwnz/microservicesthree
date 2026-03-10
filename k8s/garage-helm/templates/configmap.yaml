@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "garage.fullname" . }}-config
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+data:
+  garage.toml: |
+    metadata_dir  = "/data/meta"
+    data_dir      = "/data/storage"
+    db_engine     = "lmdb"
+
+    replication_factor = {{ .Values.garage.metadataReplicationFactor }}
+
+    [s3_api]
+    s3_region   = "{{ .Values.garage.s3Region }}"
+    api_bind_addr = "0.0.0.0:{{ .Values.ports.s3Api }}"
+    root_domain = ".s3.garage.localhost"
+
+    [s3_web]
+    bind_addr   = "0.0.0.0:{{ .Values.ports.web }}"
+    root_domain = ".web.garage.localhost"
+
+    [admin]
+    api_bind_addr = "0.0.0.0:{{ .Values.ports.admin }}"
+
+    [rpc]
+    bind_addr     = "0.0.0.0:{{ .Values.ports.rpc }}"
+    secret        = "__RPC_SECRET__"
+    {{- $fullname := include "garage.fullname" . }}
+    {{- $ns := .Release.Namespace }}
+    bootstrap_peers = [
+      {{- range $i := until (int .Values.replicaCount) }}
+      "{{ $fullname }}-{{ $i }}.{{ $fullname }}-headless.{{ $ns }}.svc.cluster.local:{{ $.Values.ports.rpc }}",
+      {{- end }}
+    ]

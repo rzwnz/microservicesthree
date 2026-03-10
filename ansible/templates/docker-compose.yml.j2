@@ -1,0 +1,41 @@
+# =============================================================
+# File Service — Ansible deployment template
+# Rendered by Ansible and placed on the target host.
+# =============================================================
+version: '3.9'
+
+services:
+  file-service:
+    image: "{{ file_service_image | default('sthree/file-service:latest') }}"
+    container_name: file-service
+    restart: unless-stopped
+    ports:
+      - "{{ file_service_port | default('8087') }}:8087"
+    environment:
+      SPRING_PROFILES_ACTIVE: "{{ spring_profiles_active | default('prod') }}"
+      SERVER_PORT: "8087"
+      SPRING_DATASOURCE_URL: "{{ spring_datasource_url }}"
+      SPRING_DATASOURCE_USERNAME: "{{ spring_datasource_username }}"
+      SPRING_DATASOURCE_PASSWORD: "{{ spring_datasource_password }}"
+      SPRING_SQL_INIT_MODE: "{{ spring_sql_init_mode | default('never') }}"
+      SPRING_REDIS_HOST: "{{ redis_host }}"
+      SPRING_REDIS_PORT: "{{ redis_port | default('6379') }}"
+      SPRING_REDIS_PASSWORD: "{{ redis_password | default('') }}"
+      SPRING_REDIS_DATABASE: "{{ redis_database | default('7') }}"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: "{{ kafka_bootstrap_servers }}"
+      GARAGE_ENDPOINT: "{{ garage_endpoint }}"
+      GARAGE_ACCESS_KEY: "{{ garage_access_key }}"
+      GARAGE_SECRET_KEY: "{{ garage_secret_key }}"
+      GARAGE_REGION: "{{ garage_region | default('garage') }}"
+      STORAGE_QUOTA_DEFAULT_BYTES: "{{ storage_quota_bytes | default('1073741824') }}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
